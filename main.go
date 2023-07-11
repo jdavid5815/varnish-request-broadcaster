@@ -22,10 +22,7 @@ const (
 	requestTimeout     int = 5
 )
 
-var (
-	forceStatus bool
-	locker      sync.RWMutex
-)
+var wg sync.WaitGroup
 
 func createHTTPClient() *http.Client {
 
@@ -54,129 +51,116 @@ func hash(s string) string {
 	return fmt.Sprintf("%v", h.Sum32())
 }
 
-// reqHandler handles any incoming http request. Its main purpose
-// is to distribute the request further to all required caches.
-func reqHandler(w http.ResponseWriter, r *http.Request) {
+/* startBroadcastServer starts up an HTTP server that accepts either http or https
+ * connections, depending on whether crt and key are empty or not. If https is chosen
+ * then port https is used. If not port http is used. Log messages are send to the lc
+ * logChannel.
+ */
+func startBroadcastServer(crt string, key string, port int, https int, forceStatus bool, lc chan<- []string, gc chan map[string]Group, jc chan *Job) {
 
 	var (
-		groupName       string
-		reqId           string
-		broadcastCaches []Vcache
-		reqStatusCode   = http.StatusOK
-		respBody        = make(map[string]int)
+		groups map[string]Group
+		err    error
 	)
 
-	for k, v := range r.Header {
-		if strings.ToLower(k) == "x-group" {
-			groupName = v[0]
-			break
-		}
-	}
+	// Wait for the groups configuration.
+	groups = <-gc
+	//http.HandleFunc("/", reqHandler)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-	if groupName == "" {
-		locker.RLock()
-		for _, c := range groups {
-			broadcastCaches = append(broadcastCaches, c.Caches...)
+		var (
+			groupName       string
+			errText         string
+			cacheCount      int
+			broadcastCaches []Vcache
+			jobs            []*Job
+			reqStatusCode   = http.StatusOK
+			respBody        = make(map[string]int)
+		)
+
+		for k, v := range r.Header {
+			if strings.ToLower(k) == "x-group" {
+				groupName = v[0]
+				break
+			}
 		}
-		locker.RUnlock()
-	} else {
-		locker.RLock()
-		group, found := groups[groupName]
-		locker.RUnlock()
-		if !found {
-			var errText = fmt.Sprintf("Group %s not found.", groupName)
-			sendToLogChannel(errText)
-			http.Error(w, errText, http.StatusNotFound)
+		select {
+		case groups = <-gc:
+		default:
+		}
+		if groupName == "" {
+			// No specific group chosen, so relay to all caches.
+			for _, c := range groups {
+				broadcastCaches = append(broadcastCaches, c.Caches...)
+			}
+		} else {
+			group, found := groups[groupName]
+			if !found {
+				errText = fmt.Sprintf("Group %s not found.", groupName)
+				lc <- []string{errText}
+				http.Error(w, errText, http.StatusNotFound)
+				return
+			}
+			broadcastCaches = group.Caches
+		}
+		cacheCount = len(broadcastCaches)
+		if cacheCount == 0 {
+			if groupName == "" {
+				lc <- []string{"No configured caches found."}
+			} else {
+				lc <- []string{fmt.Sprintf("Group %s has no configured caches.", groupName)}
+			}
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		locker.RLock()
-		broadcastCaches = group.Caches
-		locker.RUnlock()
-	}
-
-	locker.RLock()
-	var cacheCount = len(broadcastCaches)
-	locker.RUnlock()
-
-	if cacheCount == 0 {
-		if groupName == "" {
-			sendToLogChannel("No configured caches found.")
-		} else {
-			sendToLogChannel("Group ", groupName, " has no configured caches.")
+		jobs = make([]*Job, cacheCount)
+		for idx, bc := range broadcastCaches {
+			bc.Method = r.Method
+			bc.Item = r.URL.Path
+			bc.Headers = r.Header
+			if len(r.Host) != 0 {
+				bc.Headers.Add("Host", r.Host)
+			}
+			job := Job{}
+			job.Cache = bc
+			job.Result = make(chan []byte, 1)
+			job.Status = make(chan int, 1)
+			jobs[idx] = &job
+			jc <- &job
 		}
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	var jobs = make([]*Job, cacheCount)
-
-	locker.Lock()
-	for idx, bc := range broadcastCaches {
-		bc.Method = r.Method
-		bc.Item = r.URL.Path
-		bc.Headers = r.Header
-		if len(r.Host) != 0 {
-			bc.Headers.Add("Host", r.Host)
+		for _, job := range jobs {
+			jobStatusCode := <-job.Status
+			if forceStatus && reqStatusCode == http.StatusOK {
+				reqStatusCode = jobStatusCode
+			}
+			respBody[job.Cache.Name] = jobStatusCode
+			lc <- []string{hash(hash(time.Now().String())), " ", r.Method, " ", job.Cache.Address, r.URL.Path, " ", "\n"}
 		}
-		job := Job{}
-		job.Cache = bc
-		job.Result = make(chan []byte, 1)
-		job.Status = make(chan int, 1)
-		jobs[idx] = &job
-		jobChannel <- &job
-	}
-	locker.Unlock()
-
-	if logging {
-		reqId = hash(hash(time.Now().String()))
-	}
-
-	for _, job := range jobs {
-		jobStatusCode := <-job.Status
-		if forceStatus && reqStatusCode == http.StatusOK {
-			reqStatusCode = jobStatusCode
-		}
-		locker.Lock()
-		respBody[job.Cache.Name] = jobStatusCode
-		locker.Unlock()
-		locker.RLock()
-		sendToLogChannel(reqId, " ", r.Method, " ", job.Cache.Address, r.URL.Path, " ", "\n")
-		locker.RUnlock()
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(reqStatusCode)
-
-	out, _ := json.MarshalIndent(respBody, "", "  ")
-	w.Write(out)
-}
-
-/*
- * crt: certificate
- * key: private key
- * port: the http port
- * https: the https port
- */
-func startBroadcastServer(crt *string, key *string, port *int, https *int) {
-
-	http.HandleFunc("/", reqHandler)
-	if *crt != "" && *key != "" {
-		_, err := os.Stat(*crt)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(reqStatusCode)
+		out, _ := json.MarshalIndent(respBody, "", "  ")
+		w.Write(out)
+	})
+	if crt != "" && key != "" {
+		_, err = os.Stat(crt)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			lc <- []string{err.Error()}
+			syscall.Kill(os.Getpid(), syscall.SIGTERM)
+			return
 		}
-		_, err = os.Stat(*key)
+		_, err = os.Stat(key)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			lc <- []string{err.Error()}
+			syscall.Kill(os.Getpid(), syscall.SIGTERM)
+			return
 		}
-		fmt.Fprintf(os.Stdout, "%s Broadcaster serving on %s...\n", time.Now().Format(time.RFC3339), strconv.Itoa(*https))
-		fmt.Println(http.ListenAndServeTLS(":"+strconv.Itoa(*https), *crt, *key, nil))
+		lc <- []string{fmt.Sprintf("Broadcaster serving on %s...\n", strconv.Itoa(https))}
+		err = http.ListenAndServeTLS(":"+strconv.Itoa(https), crt, key, nil)
 	} else {
-		fmt.Fprintf(os.Stdout, "%s Broadcaster serving on %s...\n", time.Now().Format(time.RFC3339), strconv.Itoa(*port))
-		fmt.Println(http.ListenAndServe(":"+strconv.Itoa(*port), nil))
+		lc <- []string{fmt.Sprintf("Broadcaster serving on %s...\n", strconv.Itoa(port))}
+		err = http.ListenAndServe(":"+strconv.Itoa(port), nil)
 	}
+	lc <- []string{err.Error()}
 }
 
 func main() {
@@ -204,9 +188,6 @@ func main() {
 	// Be nice and do not use all available threads.
 	runtime.GOMAXPROCS(runtime.NumCPU() - 1)
 
-	// Set Global variable forceStatus
-	forceStatus = *enforceStatus
-
 	commandLine.Usage = func() {
 		fmt.Fprint(os.Stdout, "Usage of the varnish broadcaster:\n")
 		commandLine.PrintDefaults()
@@ -223,11 +204,13 @@ func main() {
 	}
 
 	// Start logger thread.
+	wg.Add(1)
 	go logger(*logFilePath, logChannel, muteChannel)
 
 	// Relay SIGHUP signals to the hupChannel and start
 	// a thread to handle configuration reloads.
 	signal.Notify(hupChannel, syscall.SIGHUP)
+	wg.Add(1)
 	go reloadConfigOnHangUp(cachesCfgFile, hupChannel, logChannel, grpChannel)
 
 	// Load the initial configuration.
@@ -239,12 +222,17 @@ func main() {
 	// Relay Interrupts, TERM and ABRT signals to the kilChannel
 	// and start thread to handle graceful shutdown.
 	signal.Notify(kilChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGABRT)
+	wg.Add(1)
 	go gracefulTerminate(logChannel, hupChannel, kilChannel, grpChannel, muteChannel)
 
 	// Start worker threads.
 	for i := 0; i < (*grCount); i++ {
+		wg.Add(1)
 		go jobWorker(jobChannel, *reqRetries)
 	}
 
-	startBroadcastServer(crtFile, keyFile, port, httpsPort)
+	startBroadcastServer(*crtFile, *keyFile, *port, *httpsPort, *enforceStatus, logChannel, grpChannel, jobChannel)
+
+	// Wait for other threads to gracefully terminate.
+	wg.Wait()
 }

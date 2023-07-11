@@ -1,0 +1,68 @@
+# The configuration reload is being triggered
+# when the broadcaster process receives
+# a SIGHUP notification.
+
+varnishtest "Verify configuration reload."
+
+# Prepare some configuration.
+# We start with a faulty configuration, set the port to 6000 initially
+# while varnish is configured on 6001.
+shell {
+    rm -rf ${tmpdir}/caches.ini
+    touch ${tmpdir}/caches.ini
+    echo "[test]\n"\
+    "Cache1 = http://localhost:6000" > ${tmpdir}/caches.ini
+}
+
+process p0 {
+    broadcaster -cfg ${tmpdir}/caches.ini --enforce
+} -start
+
+server s1 {
+    rxreq
+    expect req.url == "/"
+    txresp
+
+} -start
+
+varnish v1 -arg "-a :6001" -vcl {
+
+    backend b1 {
+               .host = "${s1_addr}";
+               .port = "${s1_port}";
+    }
+
+    sub vcl_recv {
+        if (req.method == "PURGE") {
+            return(purge);
+        }
+    }
+} -start
+
+client c1 -connect 127.0.0.1:8088 {
+    txreq -req PURGE -url "/" -hdr "Host: localhost" -hdr "x-group: test"
+    rxresp
+
+    expect resp.status == 500
+    expect resp.bodylen == "19"
+} -run
+
+
+# Rewrite the config file with a valid cache and signal
+# the broadcaster to reload.
+shell {
+    rm -rf ${tmpdir}/caches.ini
+    touch ${tmpdir}/caches.ini
+    echo "[test]\nCache1 = http://localhost:6001" > ${tmpdir}/caches.ini
+    kill -1 ${p0_pid}
+}
+
+# Check that the configuration has been reloaded and
+# that this time the request returns a 200.
+client c1 -connect 127.0.0.1:8088 {
+    txreq -req PURGE -url "/" -hdr "Host: localhost" -hdr "x-group: test"
+    rxresp
+
+    expect resp.status == 200
+    expect resp.bodylen == "19"
+} -run

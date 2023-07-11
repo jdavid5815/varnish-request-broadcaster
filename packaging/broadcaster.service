@@ -1,0 +1,15 @@
+[Unit]
+Description=Broadcaster
+After=network.target
+
+[Service]
+ExecStart=/usr/sbin/broadcaster
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=broadcaster
+PrivateTmp=true
+User=vcbc
+Group=vcbc
+
+[Install]
+WantedBy=multi-user.target

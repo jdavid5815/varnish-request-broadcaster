@@ -1,0 +1,100 @@
+# By default the response code of the main broadcast request is
+# not affected by the response codes of all the broadcasted sub-requests.
+# If enforce mode is on, this behaviour changes and the status code is
+# set to the first encoutered non-200 status code.
+
+varnishtest "Verify simple requests with enforce mode on."
+
+# prepare some configuration.
+shell {
+    rm -rf ${tmpdir}/caches.ini
+    touch ${tmpdir}/caches.ini
+    echo "[test]\n"\
+    "Cache1 = http://localhost:6001\n"\
+    "[offline]\n"\
+    "Cache4 = http://localhost:6000" > ${tmpdir}/caches.ini
+}
+
+process p0 {
+    broadcaster -cfg ${tmpdir}/caches.ini --enforce
+} -start
+
+server s1 {
+    rxreq
+    expect req.url == "/"
+    txresp
+
+} -start
+
+server s4 {
+    rxreq
+    expect req.url == "/"
+    txresp
+
+    rxreq
+    expect req.url == "/"
+    txresp
+
+} -start
+
+varnish v1 -arg "-a :6001" -vcl {
+
+    backend b1 {
+               .host = "${s1_addr}";
+               .port = "${s1_port}";
+    }
+
+    sub vcl_recv {
+        if (req.method == "PURGE") {
+            return(purge);
+        }
+    }
+} -start
+
+varnish v4 -arg "-a :6000" -vcl {
+
+    backend b1 {
+               .host = "${s4_addr}";
+               .port = "${s4_port}";
+    }
+
+    sub vcl_recv {
+        if (req.method == "PURGE") {
+            return(synth(405));
+        }
+    }
+
+} -start
+
+# Purge against the test group.
+# This group contains a fine working cache which
+# is aware of purge requests.
+client c1 -connect 127.0.0.1:8088 {
+    txreq -req PURGE -url "/" -hdr "Host: localhost" -hdr "x-group: test"
+    rxresp
+
+    expect resp.status == 200
+    expect resp.bodylen == "19"
+} -run
+
+# Purge against the offline group.
+# This group contains a cache that reports a PURGE
+# request as a not supported method.
+client c2 -connect 127.0.0.1:8088 {
+    txreq -req PURGE -url "/" -hdr "Host: localhost" -hdr "x-group: offline"
+    rxresp
+
+    expect resp.status == 405
+    expect resp.bodylen == "19"
+} -run
+
+# Purge against all caches, due to enforcing mode the
+# status code is the first non-200 encountered code,
+# 405 in this example.
+client c3 -connect 127.0.0.1:8088 {
+    txreq -req PURGE -url "/" -hdr "Host: localhost"
+    rxresp
+
+    expect resp.status == 405
+    expect resp.bodylen == "36"
+} -run

@@ -1,0 +1,133 @@
+varnishtest "Verify simple requests."
+
+shell {
+    rm -rf ${tmpdir}/caches.ini
+    touch ${tmpdir}/caches.ini
+    echo "[test]\n"\
+    "Cache1 = http://localhost:6001\n"\
+    "Cache2 = http://localhost:6002\n"\
+    "Cache3 = http://localhost:6003" > ${tmpdir}/caches.ini
+}
+
+process p0 {
+    broadcaster -cfg ${tmpdir}/caches.ini
+} -start
+
+server s1 {
+    rxreq
+    expect req.url == "/"
+    txresp
+
+} -start
+
+server s2 {
+    rxreq
+    expect req.url == "/"
+    txresp
+
+} -start
+
+server s3 {
+    rxreq
+    expect req.url == "/"
+    txresp
+
+    rxreq
+    expect req.url == "/"
+    txresp
+
+} -start
+
+varnish v1 -arg "-a :6001" -vcl {
+
+    backend b1 {
+               .host = "${s1_addr}";
+               .port = "${s1_port}";
+    }
+
+    sub vcl_recv {
+        if (req.method == "PURGE") {
+            return(purge);
+        }
+    }
+} -start
+
+varnish v2 -arg "-a :6002" -vcl {
+
+    backend b1 {
+               .host = "${s2_addr}";
+               .port = "${s2_port}";
+    }
+
+    sub vcl_recv {
+        if (req.method == "PURGE") {
+            return(purge);
+        }
+    }
+} -start
+
+varnish v3 -arg "-a :6003" -vcl {
+
+    backend b1 {
+               .host = "${s3_addr}";
+               .port = "${s3_port}";
+    }
+
+    sub vcl_recv {
+        if (req.method == "PURGE") {
+            return(purge);
+        }
+    }
+} -start
+
+# Broadcast a GET request, warm up the caches.
+client c1 -connect 127.0.0.1:8088 {
+    txreq -url "/" -hdr "x-group: test" -hdr "Host: localhost"
+    rxresp
+
+    expect resp.status == 200
+    expect resp.bodylen == "53"
+} -run
+
+# Broadcast againt a non-existing group.
+client c2 -connect 127.0.0.1:8088 {
+    txreq -url "/" -hdr "x-group: bogus" -hdr "Host: localhost"
+    rxresp
+
+    expect resp.status == 404
+} -run
+
+# Check that there is some cached content.
+# A value different from 0 for the age header
+# should be a good enough indicator.
+client c3 -connect 127.0.0.1:6003 {
+    txreq -url "/"  -hdr "Host: localhost:6003"
+    rxresp
+
+    delay 1
+
+    txreq -url "/"  -hdr "Host: localhost:6003"
+    rxresp
+
+    expect resp.status == 200
+    expect resp.http.age == 1
+} -run
+
+# Clear the caches.
+client c4 -connect 127.0.0.1:8088 {
+    txreq -req PURGE -url "/" -hdr "x-group: test" -hdr "Host: localhost"
+    rxresp
+
+    expect resp.status == 200
+    expect resp.bodylen == "53"
+} -run
+
+# Check that after the purge the Age header
+# has been reset to 0.
+client c5 -connect 127.0.0.1:6003 {
+    txreq -url "/"  -hdr "Host: localhost:6003"
+    rxresp
+
+    expect resp.status == 200
+    expect resp.http.age == 0
+} -run

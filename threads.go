@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"ini"
 	"io"
 	"log"
 	"net/http"
@@ -25,6 +26,7 @@ func logger(path string, lc <-chan []string, mute <-chan bool) {
 		enabled   bool = true
 	)
 
+	defer wg.Done()
 	if path != "" {
 		logWriter, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
@@ -36,7 +38,6 @@ func logger(path string, lc <-chan []string, mute <-chan bool) {
 	} else {
 		logger = log.New(os.Stdout, "", 0)
 	}
-
 	for logEntry := range lc {
 		select {
 		case enabled = <-mute:
@@ -71,6 +72,7 @@ func reloadConfigOnHangUp(caches *string, hc <-chan os.Signal, lc chan<- []strin
 
 	var groups map[string]Group
 
+	defer wg.Done()
 Start:
 	for range hc {
 		lc <- []string{"Loading configuration & setting up connections.\n"}
@@ -99,6 +101,7 @@ Start:
 // and then closes all the other channel before exiting.
 func gracefulTerminate(log chan<- []string, hup chan<- os.Signal, kill chan os.Signal, grp chan<- map[string]Group, mute chan<- bool) {
 
+	defer wg.Done()
 	<-kill
 	close(mute)
 	close(grp)
@@ -106,7 +109,6 @@ func gracefulTerminate(log chan<- []string, hup chan<- os.Signal, kill chan os.S
 	close(hup)
 	log <- []string{"Broadcaster exited successfully.\n"}
 	close(log)
-	os.Exit(0)
 }
 
 // jobWorker listens on the jobs channel and handles
@@ -118,6 +120,7 @@ func jobWorker(jobs <-chan *Job, retries int) {
 		err        error
 	)
 
+	defer wg.Done()
 	for job := range jobs {
 		for i := 0; i <= retries; i++ {
 			client := job.Cache.Client
