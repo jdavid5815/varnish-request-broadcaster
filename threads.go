@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"ini"
 	"io"
 	"log"
 	"net/http"

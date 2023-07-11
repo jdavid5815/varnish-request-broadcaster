@@ -1,0 +1,32 @@
+FROM golang:1.20.4-alpine AS build
+
+WORKDIR /varnish-request-broadcaster
+
+COPY *.go go.mod go.sum .
+
+ENV CGO_ENABLED 0
+
+RUN set -ex  && \
+    apk add --no-cache git  && \
+    go mod tidy && \
+    go build
+
+FROM alpine:3.17.3
+
+RUN set -ex && \
+    mkdir -p /home/varnish-request-broadcaster && \
+    addgroup -Sg 1000 broadcaster && \
+    adduser  -SG broadcaster -u 1000 -h /home/varnish-request-broadcaster broadcaster && \
+    chown broadcaster:broadcaster /home/varnish-request-broadcaster
+
+USER broadcaster
+
+COPY --from=build /varnish-request-broadcaster/varnish-request-broadcaster /home/varnish-request-broadcaster/varnish-request-broadcaster
+
+COPY caches.ini /caches.ini
+
+EXPOSE 8088
+
+RUN id broadcaster
+
+CMD ["/home/varnish-request-broadcaster/varnish-request-broadcaster"]

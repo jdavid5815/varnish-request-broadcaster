@@ -1,0 +1,34 @@
+FROM golang:1.20.4 AS build
+
+WORKDIR /varnish-request-broadcaster
+
+COPY *.go go.mod go.sum .
+
+ENV CGO_ENABLED 1
+
+RUN set -ex  && \
+    apt-get update && \
+    apt-get install -y git && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* && \ 
+    go mod tidy && \
+    go build -race
+
+FROM debian:stable
+
+RUN set -ex && \
+    mkdir -p /home/varnish-request-broadcaster && \
+    addgroup --system --gid 1000 broadcaster && \
+    adduser --system --home /home/varnish-request-broadcaster --uid 1000 --group broadcaster --disabled-password --disabled-login && \
+    chown broadcaster:broadcaster /home/varnish-request-broadcaster
+
+USER broadcaster
+
+COPY --from=build /varnish-request-broadcaster/varnish-request-broadcaster /home/varnish-request-broadcaster/varnish-request-broadcaster
+
+COPY caches.ini /caches.ini
+
+EXPOSE 8088
+
+RUN id broadcaster
+
+CMD ["/home/varnish-request-broadcaster/varnish-request-broadcaster"]

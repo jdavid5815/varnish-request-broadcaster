@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	ini "github.com/jdavid5815/http-request-broadcaster/ini"
+	ini "github.com/jdavid5815/ini"
 )
 
 func LoadCachesFromJson(configPath string) ([]Group, error) {
