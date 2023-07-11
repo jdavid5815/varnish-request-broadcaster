@@ -25,7 +25,6 @@ const (
 var (
 	forceStatus bool
 	locker      sync.RWMutex
-	jobChannel  = make(chan *Job, 8192)
 )
 
 func createHTTPClient() *http.Client {
@@ -53,13 +52,6 @@ func hash(s string) string {
 	h := fnv.New32a()
 	h.Write([]byte(s))
 	return fmt.Sprintf("%v", h.Sum32())
-}
-
-func sendToLogChannel(args ...string) {
-
-	if logging {
-		logChannel <- args
-	}
 }
 
 // reqHandler handles any incoming http request. Its main purpose
@@ -206,6 +198,7 @@ func main() {
 		kilChannel    = make(chan os.Signal, 1)
 		grpChannel    = make(chan map[string]Group, 1)
 		muteChannel   = make(chan bool, 1)
+		jobChannel    = make(chan *Job, 8192)
 	)
 
 	// Be nice and do not use all available threads.
@@ -250,7 +243,7 @@ func main() {
 
 	// Start worker threads.
 	for i := 0; i < (*grCount); i++ {
-		go jobWorker(jobChannel, reqRetries)
+		go jobWorker(jobChannel, *reqRetries)
 	}
 
 	startBroadcastServer(crtFile, keyFile, port, httpsPort)

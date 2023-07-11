@@ -109,59 +109,52 @@ func gracefulTerminate(log chan<- []string, hup chan<- os.Signal, kill chan os.S
 	os.Exit(0)
 }
 
-func doRequest(cache Vcache) (int, error) {
-
-	client := cache.Client
-	reqString := cache.Address + cache.Item
-	r, err := http.NewRequest(cache.Method, reqString, nil)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	// Preserve the headers
-	for k, v := range cache.Headers {
-		r.Header.Set(k, strings.Join(v, " "))
-	}
-	// The "Host" header is the hardest
-	r.Header.Set("X-Host", cache.Headers.Get("Host"))
-	r.Host = cache.Headers.Get("Host")
-	resp, err := client.Do(r)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	_, err = io.Copy(io.Discard, resp.Body)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	resp.Body.Close()
-	return resp.StatusCode, err
-}
-
 // jobWorker listens on the jobs channel and handles
 // any incoming job.
-func jobWorker(jobs <-chan *Job, retries *int) {
+func jobWorker(jobs <-chan *Job, retries int) {
 
 	var (
-		out int
-		err error
+		statusCode int
+		err        error
 	)
 
 	for job := range jobs {
-		for i := 0; i <= *retries; i++ {
-			locker.RLock()
-			out, err = doRequest(job.Cache)
-			locker.RUnlock()
-			if err == nil {
-				break
-			} else {
-				locker.Lock()
+		for i := 0; i <= retries; i++ {
+			client := job.Cache.Client
+			reqString := job.Cache.Address + job.Cache.Item
+			r, err := http.NewRequest(job.Cache.Method, reqString, nil)
+			if err != nil {
+				statusCode = http.StatusInternalServerError
 				job.Cache.Client = createHTTPClient()
-				locker.Unlock()
+				continue
 			}
+			// Preserve the headers
+			for k, v := range job.Cache.Headers {
+				r.Header.Set(k, strings.Join(v, " "))
+			}
+			// The "Host" header is the hardest
+			r.Header.Set("X-Host", job.Cache.Headers.Get("Host"))
+			r.Host = job.Cache.Headers.Get("Host")
+			resp, err := client.Do(r)
+			if err != nil {
+				statusCode = http.StatusInternalServerError
+				job.Cache.Client = createHTTPClient()
+				continue
+			}
+			_, err = io.Copy(io.Discard, resp.Body)
+			if err != nil {
+				statusCode = http.StatusInternalServerError
+				job.Cache.Client = createHTTPClient()
+				continue
+			}
+			resp.Body.Close()
+			statusCode = resp.StatusCode
+			break
 		}
 		if err != nil {
 			job.Result <- []byte(err.Error())
 			continue
 		}
-		job.Status <- out
+		job.Status <- statusCode
 	}
 }
