@@ -19,11 +19,11 @@ $ go install github.com/jdavid5815/varnish-request-broadcaster@v0.0.3-rc3
 If you want to build from source code, then I recommend using the included Dockerfiles. Use *Dockerfile.musl* for lean, production ready versions. For testing and debugging, *Dockerfile.glibc* is recommended. It's bigger and bulkier and will consume more resources due to the inclusion of the Golang **race** libraries, but you'll get a lot more detailed debugging information in case of a program crash due to a race condition.
 
 ```
-$ docker build -t varnish-request-broadcaster -f docker/Dockerfile.musl .
+$ docker build -t jdavid5815/varnish-request-broadcaster:vX.X.X -f docker/Dockerfile.musl .
 ```    
 
 ```
-$ docker build -t varnish-request-broadcaster -f docker/Dockerfile.glibc .
+$ docker build -t jdavid5815/varnish-request-broadcaster:vX.X.X -f docker/Dockerfile.glibc .
 ```
 
 ## Usage
