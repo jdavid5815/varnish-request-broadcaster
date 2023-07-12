@@ -107,7 +107,7 @@ func gracefulTerminate(log chan<- []string, hup chan<- os.Signal, kill chan os.S
 	close(kill)
 	close(hup)
 	log <- []string{"Broadcaster exited successfully.\n"}
-	//close(log)
+	close(log)
 }
 
 // jobWorker listens on the jobs channel and handles
