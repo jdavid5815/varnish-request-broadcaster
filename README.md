@@ -1,5 +1,5 @@
 # History
-The Initial idea for this program seems to have come from [Marius Magureanu](github.com/mariusmagureanu). Credit where it's due. Timothy Clark found the code with [Guillaume Quintard](https://github.com/gquintard) at [Github.com/gquintard/broadcaster](https://github.com/gquintard/broadcaster) and added some fixes. I forked the code from [Timothy Clark](https://github.com/timothyclarke/http-request-broadcaster) and tried to fix a panic that occasionally occurred due to a race condition that only manifested itself under high load. However, after some failed attempts I decided to completely rewrite the program to get rid of all the global variables and provide more consistent locking.
+The Initial idea for this program seems to have come from [Marius Magureanu](github.com/mariusmagureanu). Credit where it's due. [Timothy Clark](https://github.com/timothyclarke) found the code with [Guillaume Quintard](https://github.com/gquintard) at [Github.com/gquintard/broadcaster](https://github.com/gquintard/broadcaster) and added some fixes. I forked the code from [Github.com/timothyclarke/http-request-broadcaster](https://github.com/timothyclarke/http-request-broadcaster) and tried to fix a panic that occasionally occurred due to a race condition that only manifested itself under high load. However, after some failed attempts I decided to completely rewrite the program to get rid of all the global variables and provide more consistent locking. To make a distinction between the original code and this new incantation, I decided to call it **varnish-request-broadcaster**.
 
 # Request distributor
 Broadcasts requests to multiple [Varnish](<https://www.varnish-cache.org/>) caches from a single entry point.
@@ -11,7 +11,7 @@ The broadcaster consists out of a web-server which will handle the distribution 
 The easiest way is probably to pull a pre-made image from [Docker Hub](https://hub.docker.com/repository/docker/jdavid5815/varnish-request-broadcaster/tags?page=1&ordering=last_updated). Alternatively, the following can also be used:
 
 ```
-$ go install github.com/jdavid5815/varnish-request-broadcaster@v0.0.3-rc3
+$ go install github.com/jdavid5815/varnish-request-broadcaster@v1.0.0
 ```
 
 ## Building
