@@ -233,6 +233,9 @@ func main() {
 
 	startBroadcastServer(*crtFile, *keyFile, *port, *httpsPort, *enforceStatus, logChannel, grpChannel, jobChannel)
 
+	// Terminate logging
+	close(logChannel)
+
 	// Wait for other threads to gracefully terminate.
 	wg.Wait()
 }
