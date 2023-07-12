@@ -1,6 +1,6 @@
 github.com/gopherjs/gopherjs v1.17.2 h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25dO0g=
-github.com/jdavid5815/ini v0.0.0-20230711152602-7423fdae2767 h1:yWPA/qr/iKkpciUeL+tjR8WwxX/4RWAVhipGiDAyDSc=
-github.com/jdavid5815/ini v0.0.0-20230711152602-7423fdae2767/go.mod h1:iQyHDOGBAMC2GeYOpbT0BuUt6tENgUIynOcdkQk4t8E=
+github.com/jdavid5815/ini v1.0.0 h1:ZFO8i0hk9adAQHDDLmaCnxAUcgNU/oV+FRSUrwo9mIQ=
+github.com/jdavid5815/ini v1.0.0/go.mod h1:iQyHDOGBAMC2GeYOpbT0BuUt6tENgUIynOcdkQk4t8E=
 github.com/jtolds/gls v4.20.0+incompatible h1:xdiiI2gbIgH/gLH7ADydsJ1uDOEzR8yvV7C0MuV77Wo=
 github.com/smarty/assertions v1.15.0 h1:cR//PqUBUiQRakZWqBiFFQ9wb8emQGDb0HeGdqGByCY=
 github.com/smartystreets/goconvey v1.8.1 h1:qGjIddxOk4grTu9JPOU31tVfq3cNdBlNa5sSznIX1xY=
