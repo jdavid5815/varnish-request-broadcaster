@@ -1,7 +1,7 @@
 version: "3"
 services:
   broadcaster:
-    image: jdavid5815/varnish-request-broadcaster:v0.0.2
+    image: jdavid5815/varnish-request-broadcaster:v1.0.0
     command: /home/varnish-request-broadcaster/varnish-request-broadcaster -cfg /caches.ini -enable-log
     ports:
       - 9999:8088

@@ -12,7 +12,7 @@ i002.vtc
 i003.vtc
 ```
 
-were included in the original version of the program this program is based on. I never used them, but I kept them here because somebody else might find them usefull.
+were included in the original version of the program this program is based on. I never used them, but I kept them here because somebody else might find them useful.
 
 ## Broadcaster testing suite
 
@@ -63,6 +63,4 @@ A easy way to perform some load-testing is to use Apache Bench (or ab - install 
 $ ab -n 100000 -c 250 -m BAN http://localhost:9999/
 ```
 
-
-
-This command will start 
+This command will start 100000 requests with a parallelism of 250.
