@@ -1,0 +1,89 @@
+version: "3"
+services:
+  broadcaster:
+    image: jdavid5815/varnish-request-broadcaster:v0.0.2
+    command: /home/varnish-request-broadcaster/varnish-request-broadcaster -cfg /caches.ini -enable-log
+    ports:
+      - 9999:8088
+    volumes:
+      - ./caches.ini:/caches.ini
+  varnish1:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish2:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish3:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish4:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish5:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish6:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish7:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish8:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish9:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish10:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish11:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish12:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish13:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish14:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish15:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish16:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish17:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish18:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish19:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
+  varnish20:
+    image: varnish:7.3
+    volumes:
+      - ./default.vcl:/etc/varnish/default.vcl
