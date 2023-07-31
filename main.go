@@ -56,7 +56,7 @@ func hash(s string) string {
  * then port https is used. If not port http is used. Log messages are send to the lc
  * logChannel.
  */
-func startBroadcastServer(crt string, key string, port int, https int, forceStatus bool, lc chan<- []string, gc chan map[string]Group, jc chan *Job) {
+func startBroadcastServer(crt string, key string, port int, https int, forceStatus bool, lc chan<- []string, gc chan map[string]Group, jc chan Job) {
 
 	var (
 		groups map[string]Group
@@ -73,7 +73,7 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			errText         string
 			cacheCount      int
 			broadcastCaches []Vcache
-			jobs            []*Job
+			jobs            []Job
 			reqStatusCode   = http.StatusOK
 			respBody        = make(map[string]int)
 		)
@@ -113,7 +113,7 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		jobs = make([]*Job, cacheCount)
+		jobs = make([]Job, cacheCount)
 		for idx, bc := range broadcastCaches {
 			bc.Method = r.Method
 			bc.Item = r.URL.Path
@@ -125,8 +125,8 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			job.Cache = bc
 			job.Result = make(chan []byte, 1)
 			job.Status = make(chan int, 1)
-			jobs[idx] = &job
-			jc <- &job
+			jobs[idx] = job
+			jc <- job
 		}
 		for _, job := range jobs {
 			jobStatusCode := <-job.Status
@@ -182,7 +182,7 @@ func main() {
 		kilChannel    = make(chan os.Signal, 1)
 		grpChannel    = make(chan map[string]Group, 1)
 		muteChannel   = make(chan bool, 1)
-		jobChannel    = make(chan *Job, 8192)
+		jobChannel    = make(chan Job, 8192)
 	)
 
 	// Be nice and do not use all available threads.

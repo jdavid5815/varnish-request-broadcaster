@@ -112,7 +112,7 @@ func gracefulTerminate(log chan<- []string, hup chan<- os.Signal, kill chan os.S
 
 // jobWorker listens on the jobs channel and handles
 // any incoming job.
-func jobWorker(jobs <-chan *Job, retries int) {
+func jobWorker(jobs <-chan Job, retries int) {
 
 	var (
 		statusCode int
