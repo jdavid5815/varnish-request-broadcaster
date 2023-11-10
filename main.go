@@ -22,7 +22,10 @@ const (
 	requestTimeout     int = 5
 )
 
-var wg sync.WaitGroup
+var (
+	wg sync.WaitGroup
+	rw *sync.RWMutex
+)
 
 func createHTTPClient() *http.Client {
 
@@ -136,8 +139,10 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			respBody[job.Cache.Name] = jobStatusCode
 			lc <- []string{hash(hash(time.Now().String())), " ", r.Method, " ", job.Cache.Address, r.URL.Path, " ", "\n"}
 		}
+		rw.Lock()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(reqStatusCode)
+		rw.Unlock()
 		out, _ := json.MarshalIndent(respBody, "", "  ")
 		w.Write(out)
 	})
@@ -202,6 +207,9 @@ func main() {
 		fmt.Println("No configuration file specified. Use the -cfg parameter to specify one.")
 		os.Exit(1)
 	}
+
+	// Initialise the header read/write mutex
+	rw = &sync.RWMutex{}
 
 	// Start logger thread.
 	wg.Add(1)

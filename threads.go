@@ -16,7 +16,7 @@ import (
 // and writes those strings to either Stdout, or if the path
 // variable is not equal to the empty string, to a logfile
 // defined by path. It will also check for a boolean value on the
-// off channel and if true, will disable any logging.
+// mute channel and if true, will disable any logging.
 func logger(path string, lc <-chan []string, mute <-chan bool) {
 
 	var (
@@ -136,7 +136,9 @@ func jobWorker(jobs <-chan Job, retries int) {
 			}
 			// The "Host" header is the hardest
 			r.Header.Set("X-Host", job.Cache.Headers.Get("Host"))
+			rw.RLock()
 			r.Host = job.Cache.Headers.Get("Host")
+			rw.RUnlock()
 			resp, err := client.Do(r)
 			if err != nil {
 				statusCode = http.StatusInternalServerError
