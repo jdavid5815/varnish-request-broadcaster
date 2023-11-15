@@ -224,14 +224,6 @@ func main() {
 	// Load the initial configuration.
 	syscall.Kill(os.Getpid(), syscall.SIGHUP)
 
-        // Give the reloadConfigOnHangUp routine to load the initial config
-        // and print a startup message to stdout or log file, before everything
-        // is possibly muted (depending on *enableLog).
-        time.Sleep(500 * time.Millisecond)
-
-	// Now set logging according to the CLI parameters.
-	muteChannel <- *enableLog
-
 	// Relay Interrupts, TERM and ABRT signals to the kilChannel
 	// and start thread to handle graceful shutdown.
 	signal.Notify(kilChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGABRT)
@@ -243,9 +235,12 @@ func main() {
 		wg.Add(1)
 		go jobWorker(jobChannel, *reqRetries)
 	}
+        
+        // Now set logging according to the CLI parameters.
+	muteChannel <- *enableLog
 
 	startBroadcastServer(*crtFile, *keyFile, *port, *httpsPort, *enforceStatus, logChannel, grpChannel, jobChannel)
-
+	
 	// Wait for other threads to gracefully terminate.
 	wg.Wait()
 }
