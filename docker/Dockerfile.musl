@@ -29,4 +29,4 @@ EXPOSE 8088
 
 RUN id broadcaster
 
-CMD ["/home/varnish-request-broadcaster/varnish-request-broadcaster"]
+CMD ["/home/varnish-request-broadcaster/varnish-request-broadcaster", "-enable-log"]
