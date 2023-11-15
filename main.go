@@ -224,6 +224,11 @@ func main() {
 	// Load the initial configuration.
 	syscall.Kill(os.Getpid(), syscall.SIGHUP)
 
+        // Give the reloadConfigOnHangUp routine to load the initial config
+        // and print a startup message to stdout or log file, before everything
+        // is possibly muted (depending on *enableLog).
+        time.Sleep(500 * time.Millisecond)
+
 	// Now set logging according to the CLI parameters.
 	muteChannel <- *enableLog
 
