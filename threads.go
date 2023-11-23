@@ -138,7 +138,7 @@ func jobWorker(jobs <-chan Job, retries int) {
 			// The "Host" header is the hardest
 			r.Header.Set("X-Host", job.Cache.Headers.Get("Host"))
 			r.Host = job.Cache.Headers.Get("Host")
-			rw.Unlock()
+			rw.RUnlock()
 			resp, err := client.Do(r)
 			if err != nil {
 				statusCode = http.StatusInternalServerError

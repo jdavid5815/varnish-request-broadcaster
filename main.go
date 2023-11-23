@@ -88,7 +88,7 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 				break
 			}
 		}
-		rw.Unlock()
+		rw.RUnlock()
 		select {
 		case groups = <-gc:
 		default:
@@ -131,7 +131,7 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			if len(r.Host) != 0 {
 				bc.Headers.Add("Host", r.Host)
 			}
-			rw.Unlock()
+			rw.RUnlock()
 			job := Job{}
 			job.Cache = bc
 			job.Result = make(chan []byte, 1)
@@ -147,7 +147,7 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			respBody[job.Cache.Name] = jobStatusCode
 			rw.RLock()
 			lc <- []string{hash(hash(time.Now().String())), " ", r.Method, " ", job.Cache.Address, r.URL.Path, " ", "\n"}
-			rw.Unlock()
+			rw.RUnlock()
 		}
 		rw.Lock()
 		w.Header().Set("Content-Type", "application/json")
