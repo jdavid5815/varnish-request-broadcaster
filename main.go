@@ -81,14 +81,14 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			respBody        = make(map[string]int)
 		)
 
-		rw.RLock()
+		rw.Lock()
 		for k, v := range r.Header {
 			if strings.ToLower(k) == "x-group" {
 				groupName = v[0]
 				break
 			}
 		}
-		rw.RUnlock()
+		rw.Unlock()
 		select {
 		case groups = <-gc:
 		default:
@@ -124,14 +124,14 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 		}
 		jobs = make([]Job, cacheCount)
 		for idx, bc := range broadcastCaches {
-			rw.RLock()
+			rw.Lock()
 			bc.Method = r.Method
 			bc.Item = r.URL.Path
 			bc.Headers = r.Header
 			if len(r.Host) != 0 {
 				bc.Headers.Add("Host", r.Host)
 			}
-			rw.RUnlock()
+			rw.Unlock()
 			job := Job{}
 			job.Cache = bc
 			job.Result = make(chan []byte, 1)
@@ -145,9 +145,9 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 				reqStatusCode = jobStatusCode
 			}
 			respBody[job.Cache.Name] = jobStatusCode
-			rw.RLock()
+			rw.Lock()
 			lc <- []string{hash(hash(time.Now().String())), " ", r.Method, " ", job.Cache.Address, r.URL.Path, " ", "\n"}
-			rw.RUnlock()
+			rw.Unlock()
 		}
 		rw.Lock()
 		w.Header().Set("Content-Type", "application/json")
