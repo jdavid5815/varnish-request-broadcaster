@@ -24,7 +24,7 @@ const (
 
 var (
 	wg sync.WaitGroup
-	rw *sync.RWMutex
+	rw sync.RWMutex
 )
 
 func createHTTPClient() *http.Client {
@@ -217,9 +217,6 @@ func main() {
 		fmt.Println("No configuration file specified. Use the -cfg parameter to specify one.")
 		os.Exit(1)
 	}
-
-	// Initialise the header read/write mutex
-	rw = &sync.RWMutex{}
 
 	// Start logger thread.
 	wg.Add(1)
