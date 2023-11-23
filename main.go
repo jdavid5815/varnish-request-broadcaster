@@ -103,7 +103,9 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			if !found {
 				errText = fmt.Sprintf("Group %s not found.", groupName)
 				lc <- []string{errText}
+				rw.Lock()
 				http.Error(w, errText, http.StatusNotFound)
+				rw.Unlock()
 				return
 			}
 			broadcastCaches = group.Caches
@@ -115,7 +117,9 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			} else {
 				lc <- []string{fmt.Sprintf("Group %s has no configured caches.", groupName)}
 			}
+			rw.Lock()
 			w.WriteHeader(http.StatusNoContent)
+			rw.Unlock()
 			return
 		}
 		jobs = make([]Job, cacheCount)
@@ -141,7 +145,9 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 				reqStatusCode = jobStatusCode
 			}
 			respBody[job.Cache.Name] = jobStatusCode
+			rw.RLock()
 			lc <- []string{hash(hash(time.Now().String())), " ", r.Method, " ", job.Cache.Address, r.URL.Path, " ", "\n"}
+			rw.Unlock()
 		}
 		rw.Lock()
 		w.Header().Set("Content-Type", "application/json")
