@@ -81,12 +81,14 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 			respBody        = make(map[string]int)
 		)
 
+		rw.RLock()
 		for k, v := range r.Header {
 			if strings.ToLower(k) == "x-group" {
 				groupName = v[0]
 				break
 			}
 		}
+		rw.Unlock()
 		select {
 		case groups = <-gc:
 		default:
@@ -118,12 +120,14 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 		}
 		jobs = make([]Job, cacheCount)
 		for idx, bc := range broadcastCaches {
+			rw.RLock()
 			bc.Method = r.Method
 			bc.Item = r.URL.Path
 			bc.Headers = r.Header
 			if len(r.Host) != 0 {
 				bc.Headers.Add("Host", r.Host)
 			}
+			rw.Unlock()
 			job := Job{}
 			job.Cache = bc
 			job.Result = make(chan []byte, 1)
@@ -142,9 +146,9 @@ func startBroadcastServer(crt string, key string, port int, https int, forceStat
 		rw.Lock()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(reqStatusCode)
-		rw.Unlock()
 		out, _ := json.MarshalIndent(respBody, "", "  ")
 		w.Write(out)
+		rw.Unlock()
 	})
 	if crt != "" && key != "" {
 		_, err = os.Stat(crt)
@@ -221,26 +225,29 @@ func main() {
 	wg.Add(1)
 	go reloadConfigOnHangUp(cachesCfgFile, hupChannel, logChannel, grpChannel)
 
-	// Load the initial configuration.
-	syscall.Kill(os.Getpid(), syscall.SIGHUP)
-
 	// Relay Interrupts, TERM and ABRT signals to the kilChannel
 	// and start thread to handle graceful shutdown.
 	signal.Notify(kilChannel, os.Interrupt, syscall.SIGTERM, syscall.SIGABRT)
 	wg.Add(1)
 	go gracefulTerminate(logChannel, hupChannel, kilChannel, grpChannel, muteChannel)
 
+	// Allow some time for the different threads to properly start.
+	time.Sleep(100 * time.Millisecond)
+
+	// Load the initial configuration.
+	syscall.Kill(os.Getpid(), syscall.SIGHUP)
+
 	// Start worker threads.
 	for i := 0; i < (*grCount); i++ {
 		wg.Add(1)
 		go jobWorker(jobChannel, *reqRetries)
 	}
-        
-        // Now set logging according to the CLI parameters.
+
+	// Now set logging according to the CLI parameters.
 	muteChannel <- *enableLog
 
 	startBroadcastServer(*crtFile, *keyFile, *port, *httpsPort, *enforceStatus, logChannel, grpChannel, jobChannel)
-	
+
 	// Wait for other threads to gracefully terminate.
 	wg.Wait()
 }

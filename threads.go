@@ -130,15 +130,15 @@ func jobWorker(jobs <-chan Job, retries int) {
 				job.Cache.Client = createHTTPClient()
 				continue
 			}
+			rw.RLock()
 			// Preserve the headers
 			for k, v := range job.Cache.Headers {
 				r.Header.Set(k, strings.Join(v, " "))
 			}
 			// The "Host" header is the hardest
 			r.Header.Set("X-Host", job.Cache.Headers.Get("Host"))
-			rw.RLock()
 			r.Host = job.Cache.Headers.Get("Host")
-			rw.RUnlock()
+			rw.Unlock()
 			resp, err := client.Do(r)
 			if err != nil {
 				statusCode = http.StatusInternalServerError
