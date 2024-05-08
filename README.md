@@ -11,7 +11,7 @@ The broadcaster consists out of a web-server which will handle the distribution 
 The easiest way is probably to pull a pre-made image from [Docker Hub](https://hub.docker.com/repository/docker/jdavid5815/varnish-request-broadcaster/tags?page=1&ordering=last_updated). Alternatively, the following can also be used:
 
 ```
-$ go install github.com/jdavid5815/varnish-request-broadcaster@v1.0.0
+$ go install github.com/jdavid5815/varnish-request-broadcaster@v1.0.9
 ```
 
 ## Building
